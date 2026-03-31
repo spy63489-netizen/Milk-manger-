@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Milk Manager PRO+</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    body { font-family: Arial; padding: 10px; background:#f5f5f5;}
+    input, button { padding: 8px; margin: 5px; }
+    .card { padding: 10px; margin: 10px 0; border-radius:10px; }
+    .due { background:#ffcccc; }
+    .paid { background:#ccffcc; }
+  </style>
+</head>
+
+<body>
+
+<div id="loginDiv">
+  <h2>🔐 Login</h2>
+  <input id="pin" placeholder="Enter PIN">
+  <button onclick="login()">Login</button>
+</div>
+
+<div id="app" style="display:none;">
+  <h2>🥛 Milk Manager PRO+</h2>
+
+  <input id="name" placeholder="Name">
+  <input id="phone" placeholder="Phone">
+  <input id="price" placeholder="Price per litre">
+  <button onclick="addCustomer()">Add Customer</button>
+
+  <br>
+  <button onclick="backupData()">📥 Backup Data</button>
+  <input type="file" onchange="restoreData(event)">
+
+  <h3>Customers</h3>
+  <div id="list"></div>
+</div>
+
+<script>
+let savedPin = localStorage.getItem("pin") || "1234";
+let customers = JSON.parse(localStorage.getItem("customers")) || [];
+
+function login(){
+  let pin = document.getElementById("pin").value;
+  if(pin === savedPin){
+    document.getElementById("loginDiv").style.display="none";
+    document.getElementById("app").style.display="block";
+    render();
+    checkReminders();
+  } else {
+    alert("Wrong PIN");
+  }
+}
+
+function save(){
+  localStorage.setItem("customers", JSON.stringify(customers));
+}
+
+function addCustomer(){
+  let name = document.getElementById("name").value;
+  let phone = document.getElementById("phone").value;
+  let price = Number(document.getElementById("price").value);
+
+  if(!name || !phone || !price){
+    alert("Fill all fields");
+    return;
+  }
+
+  customers.push({ name, phone, price, totalLitre:0, due:0 });
+  save();
+  render();
+}
+
+function addMilk(i){
+  let litre = Number(prompt("Enter litres"));
+  if(!litre) return;
+
+  customers[i].totalLitre += litre;
+  customers[i].due += litre * customers[i].price;
+
+  save();
+  render();
+}
+
+function pay(i){
+  customers[i].due = 0;
+  customers[i].totalLitre = 0;
+  save();
+  render();
+}
+
+function printBill(i){
+  let c = customers[i];
+  let bill = `
+    <h2>Milk Bill</h2>
+    <p>Name: ${c.name}</p>
+    <p>Phone: ${c.phone}</p>
+    <p>Total Milk: ${c.totalLitre} L</p>
+    <p>Total Due: ₹${c.due}</p>
+    <hr>
+    <p>Thank you!</p>
+  `;
+  let w = window.open("");
+  w.document.write(bill);
+  w.print();
+}
+
+function checkReminders(){
+  customers.forEach(c=>{
+    if(c.due>0){
+      alert("Reminder: "+c.name+" ₹"+c.due);
+    }
+  });
+}
+
+function backupData(){
+  let data = JSON.stringify(customers);
+  let blob = new Blob([data], {type:"application/json"});
+  let a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "milk_backup.json";
+  a.click();
+}
+
+function restoreData(e){
+  let file = e.target.files[0];
+  let reader = new FileReader();
+
+  reader.onload = function(){
+    customers = JSON.parse(reader.result);
+    save();
+    render();
+  };
+
+  reader.readAsText(file);
+}
+
+function render(){
+  let html="";
+  customers.forEach((c,i)=>{
+    let status = c.due>0?"due":"paid";
+
+    html+=`
+      <div class="card ${status}">
+        <b>${c.name}</b><br>
+        📞 <a href="tel:${c.phone}">${c.phone}</a><br>
+        💬 <a href="https://wa.me/91${c.phone}?text=Please pay ₹${c.due}">
+        WhatsApp</a><br><br>
+
+        🥛 ${c.totalLitre} L<br>
+        💰 ₹${c.due}<br><br>
+
+        <button onclick="addMilk(${i})">Add Milk</button>
+        <button onclick="pay(${i})">Paid</button>
+        <button onclick="printBill(${i})">Print</button>
+      </div>
+    `;
+  });
+  document.getElementById("list").innerHTML=html;
+}
+</script>
+
+</body>
+</html>
